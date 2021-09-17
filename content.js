@@ -233,7 +233,7 @@ async function getAppliedStyle(element) {
         return false;
     };
 
-    for await (const property of Array.from(win.getComputedStyle(doc.body))) {
+    for await (const property of Array.from(styles)) {
         const style = styles.getPropertyValue(property);
         const defaultStyle = defaultStyles.getPropertyValue(property);
         const text = `${property}:${style}`;
@@ -244,14 +244,42 @@ async function getAppliedStyle(element) {
             let url;
             if (property === 'background-image' && (url = (/url\("(.*?)"\)/.exec(style) || [])[1])) {
                 properties.push(`${property}:url("${await toDataURL(url)}")`);
-            } else if (['width', 'height'].includes(property) && /px$/.test(style)) {
-                const anti = property === 'width' ? 'Height' : 'Width';
-                const scrollbarOffset = (element[`scroll${anti}`] > element[`client${anti}`]
-                    && element.getBoundingClientRect()[property] - parseFloat(style) === scrollbarWidth(doc)
-                ) ? scrollbarWidth(doc) : 0;
-                // avoid side effects of the scrollbar
-                properties.push(`${property}:${parseFloat(style) + scrollbarOffset}px`);
-            } else {
+            } else if (/^(?:width|height)$/.test(property) && /px$/.test(style)) {
+                if (parseFloat(style) === window[`inner${property.replace(/^[a-z]/, $0 => $0.toUpperCase())}`]) {
+                    properties.push(`${property}:100%`); // keep responsive
+                } else {
+                    const anti = property === 'width' ? 'Height' : 'Width';
+                    const scrollbarOffset = (element[`scroll${anti}`] > element[`client${anti}`]
+                        && element.getBoundingClientRect()[property] - parseFloat(style) === scrollbarWidth(doc)
+                    ) ? scrollbarWidth(doc) : 0;
+                    // avoid side effects of the scrollbar
+                    properties.push(`${property}:${parseFloat(style) + scrollbarOffset}px`);
+                }
+            } else if (/^(?:left|right|top|bottom)$/.test(property) && /px$/.test(style)) {
+                const anti = ({left: 'right', right: 'left', top: 'bottom', bottom: 'top'})[property];
+                const innerProperty = ({left: 'Width', right: 'Width', top: 'Height', bottom: 'Height'})[property];
+                const currentVal = parseFloat(style);
+                const antiVal = parseFloat(styles.getPropertyValue(anti));
+                const sum = currentVal + parseFloat(element[`client${innerProperty}`]) + antiVal;
+                // TODO: how to detect whether current value is a percentage value?
+                if (sum !== window[`inner${innerProperty}`] || currentVal <= antiVal) {
+                    properties.push(text);
+                }
+            } else if (/^margin-(?:left|right|top|bottom)$/.test(property) && /px$/.test(style)) {
+                // TODO: refactor above
+                const p = /^margin-(left|right|top|bottom)$/.exec(property)[1];
+                const anti = ({left: 'right', right: 'left', top: 'bottom', bottom: 'top'})[p];
+                const innerProperty = ({left: 'Width', right: 'Width', top: 'Height', bottom: 'Height'})[p];
+                const currentVal = parseFloat(style);
+                const antiVal = parseFloat(styles.getPropertyValue(`margin-${anti}`));
+                const sum = currentVal + parseFloat(element[`client${innerProperty}`]) + antiVal;
+                // try to calculate "auto"
+                if (sum === window[`inner${innerProperty}`] && currentVal && currentVal >= (antiVal || Infinity)) {
+                    properties.push(`${property}:auto`);
+                } else {
+                    properties.push(text);
+                }
+            } else if (!/(?:inline|inset)-/.test(property)) {
                 properties.push(text);
             }
         }
@@ -286,17 +314,28 @@ function getPseudoStyle(element, pseudo) {
     if ([':after', ':before'].includes(pseudo) && styles.getPropertyValue('content') === 'none') return '';
     // concern disabled attribute
     if (pseudo === ':disabled' && !element.getAttribute('disabled')) return '';
-    // todo: what should -webkit-scrollbar concern?
+    // concern width or height
+    if (/-webkit-scrollbar/.test(pseudo)) {
+        const pseudoElt = '::-webkit-scrollbar';
+        const scrollbarStyles = win.getComputedStyle(element, pseudoElt);
+        const scrollbarDefaultStyles = getDefaultStyles(element, pseudoElt);
+        const bodyScrollbarStyles = win.getComputedStyle(doc.body, pseudoElt);
+        if (['width', 'height'].every(property => !diff(scrollbarStyles, scrollbarDefaultStyles, property))) return ''
+        if (element !== doc.body && ['width', 'height'].every(property => !diff(scrollbarStyles, bodyScrollbarStyles, property))) return '';
+    }
 
-    Array.from(win.getComputedStyle(element)).forEach(property => {
-        const style = styles.getPropertyValue(property);
-        const defaultStyle = defaultStyles && defaultStyles.getPropertyValue(property);
-        if (!defaultStyle || defaultStyle !== style) {
-            properties.push(`${property}:${style}`);
-        }
+    Array.from(styles).forEach(property => {
+        const style = diff(styles, defaultStyles, property);
+        style && properties.push(`${property}:${style}`);
     });
 
     return properties.join(';');
+
+    function diff(styles, defaultStyles, property) {
+        const style = styles.getPropertyValue(property);
+        const defaultStyle = defaultStyles && defaultStyles.getPropertyValue(property);
+        return (!defaultStyle || defaultStyle !== style) && style;
+    }
 }
 
 const scrollbarPseudos = [
@@ -308,7 +347,7 @@ const scrollbarPseudos = [
 ];
 // get scrollbar style
 function getScrollbarStyle(doc) {
-    return `<style>${scrollbarPseudos.map(pseudo => `${pseudo} {${getPseudoStyle(doc.body, pseudo)}}`).join('')}</style>`;
+    return `${scrollbarPseudos.map(pseudo => `${pseudo} {${getPseudoStyle(doc.body, pseudo)}}`).join('')}`;
 }
 
 async function getStyledContent(body) {
@@ -402,7 +441,8 @@ async function run(doc) {
     // init fake document for isolating from stylesheet
     const fakeIframe = initFakeIframe(doc);
     const bodyHtml = await getStyledContent(body);
-    const bodyStyle = await getAppliedStyle(body);
+    const htmlStyle = (await getAppliedStyle(document.documentElement)).replace(/"/g, '&quot;');
+    const bodyStyle = (await getAppliedStyle(body)).replace(/"/g, '&quot;');
     const scrollbarStyle = await getScrollbarStyle(doc);
     const fontFace = await getFontFace(doc);
     fakeIframe._destroy();
@@ -411,6 +451,7 @@ async function run(doc) {
     Array.from(body.getElementsByTagName('*')).forEach(tag => tag.removeAttribute('data-dom-id'));
 
     const content = `
+    <html style="${htmlStyle}">
     <head>
         <!-- title -->
         <title>${doc.title}</title>
@@ -419,12 +460,14 @@ async function run(doc) {
         <!-- @font-face -->
         <style>${fontFace}</style>
         <!-- scrollbar style -->
-        ${scrollbarStyle}
+        <style>${scrollbarStyle}</style>
     </head>
-    <body style="${bodyStyle.replace(/"/g, '&quot;')}">${bodyHtml}</body>`;
+    <body style="${bodyStyle}">${bodyHtml}</body>
+    </html>`;
 
     if (DEBUG_MODE) {
         // rerender content in the same site for debugging
+        document.documentElement.setAttribute('style', htmlStyle);
         body.parentNode.innerHTML = content;
     }
     return content;
@@ -567,7 +610,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     info('[INFO] start to scrap the whole DOM...');
     setTimeout(async() => {
         const content = await run(document);
-        sendResponse(`<!DOCTYPE html><html>${content}</html>`);
+        sendResponse(`<!DOCTYPE html>${content}`);
         toggleLoading(false);
     });
     return true; // keep channel open // https://stackoverflow.com/a/53024910
