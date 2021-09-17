@@ -255,15 +255,21 @@
                 if (property === 'background-image' && (url = (/url\("(.*?)"\)/.exec(style) || [])[1])) {
                     properties.push(`${property}:url("${await toDataURL(url)}")`);
                 } else if (/^(?:width|height)$/.test(property) && /px$/.test(style)) {
-                    if (parseFloat(style) === window[`inner${property.replace(/^[a-z]/, $0 => $0.toUpperCase())}`]) {
+                    const innerProperty = property.replace(/^[a-z]/, $0 => $0.toUpperCase());
+                    const currentVal = parseFloat(style);
+                    const parentVal = element.parentNode === doc
+                        ? window[`inner${innerProperty}`]
+                        : element.parentNode[`client${innerProperty}`];
+                    if (currentVal === parentVal) {
+                        // TODO: not accurate
                         properties.push(`${property}:100%`); // keep responsive
                     } else {
                         const anti = property === 'width' ? 'Height' : 'Width';
                         const scrollbarOffset = (element[`scroll${anti}`] > element[`client${anti}`]
-                            && element.getBoundingClientRect()[property] - parseFloat(style) === scrollbarWidth(doc)
+                            && element.getBoundingClientRect()[property] - currentVal === scrollbarWidth(doc)
                         ) ? scrollbarWidth(doc) : 0;
                         // avoid side effects of the scrollbar
-                        properties.push(`${property}:${parseFloat(style) + scrollbarOffset}px`);
+                        properties.push(`${property}:${currentVal + scrollbarOffset}px`);
                     }
                 } else if (/^(?:left|right|top|bottom)$/.test(property) && /px$/.test(style)) {
                     const anti = ({left: 'right', right: 'left', top: 'bottom', bottom: 'top'})[property];
@@ -284,7 +290,7 @@
                     const antiVal = parseFloat(styles.getPropertyValue(`margin-${anti}`));
                     const sum = currentVal + parseFloat(element[`client${innerProperty}`]) + antiVal;
                     // try to calculate "auto"
-                    if (sum === window[`inner${innerProperty}`] && currentVal && currentVal >= (antiVal || Infinity)) {
+                    if (sum === window[`inner${innerProperty}`] && (currentVal || Infinity) >= (antiVal || Infinity)) {
                         properties.push(`${property}:auto`);
                     } else {
                         properties.push(text);
