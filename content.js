@@ -430,7 +430,7 @@ async function getStyledContent(body) {
 
     const content = container.innerHTML;
     container._destroy();
-    return content;
+    return content.replace(/&quot;/g, '\'');
 }
 
 async function run(doc) {
@@ -441,8 +441,8 @@ async function run(doc) {
     // init fake document for isolating from stylesheet
     const fakeIframe = initFakeIframe(doc);
     const bodyHtml = await getStyledContent(body);
-    const htmlStyle = (await getAppliedStyle(document.documentElement)).replace(/"/g, '&quot;');
-    const bodyStyle = (await getAppliedStyle(body)).replace(/"/g, '&quot;');
+    const htmlStyle = (await getAppliedStyle(document.documentElement)).replace(/"/g, '\'');
+    const bodyStyle = (await getAppliedStyle(body)).replace(/"/g, '\'');
     const scrollbarStyle = await getScrollbarStyle(doc);
     const fontFace = await getFontFace(doc);
     fakeIframe._destroy();
