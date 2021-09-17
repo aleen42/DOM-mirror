@@ -8,7 +8,9 @@ const _hid = () => `hook-id-${++count}`;
  * @param element
  * @param body
  */
-const _targetIn = (element, body) => body.querySelector(`[data-dom-id="${element.getAttribute('data-dom-id')}"]`) || element;
+const _targetIn = (element, body) => body.querySelector(
+    `[data-dom-id="${element.getAttribute('data-dom-id')}"]`
+) || element;
 
 const _escape = str => str.replace(/:/g, '-');
 
@@ -60,7 +62,9 @@ const inherited = [
 
 function scrollbarWidth(doc) { // https://stackoverflow.com/a/16771535
     let div = doc.createElement('div');
-    div.innerHTML = '<div style="width:50px;height:50px;position:absolute;left:-50px;top:-50px;overflow:auto;"><div style="width:1px;height:100px;"></div></div>';
+    div.innerHTML = '<div style="width:50px;height:50px;position:absolute;left:-50px;top:-50px;overflow:auto;">'
+        + '<div style="width:1px;height:100px;"></div>'
+        + '</div>';
     div = div.firstChild;
     doc.body.appendChild(div);
     const width = div.offsetWidth - div.clientWidth;
@@ -125,7 +129,9 @@ async function getFontFace(doc) {
     Array.from(doc.styleSheets).forEach(parseSheet);
     const result = [];
     for await (const fontFace of fontFaces) {
-        result.push(await _replaceAsync(fontFace, /url\("(.*?)"\)/g, async (s, url) => `url("${await toDataURL(url)}")`));
+        result.push(
+            await _replaceAsync(fontFace, /url\("(.*?)"\)/g, async (s, url) => `url("${await toDataURL(url)}")`)
+        );
     }
     return result.join('');
 }
@@ -317,11 +323,11 @@ function getPseudoStyle(element, pseudo) {
     // concern width or height
     if (/-webkit-scrollbar/.test(pseudo)) {
         const pseudoElt = '::-webkit-scrollbar';
-        const scrollbarStyles = win.getComputedStyle(element, pseudoElt);
-        const scrollbarDefaultStyles = getDefaultStyles(element, pseudoElt);
-        const bodyScrollbarStyles = win.getComputedStyle(doc.body, pseudoElt);
-        if (['width', 'height'].every(property => !diff(scrollbarStyles, scrollbarDefaultStyles, property))) return ''
-        if (element !== doc.body && ['width', 'height'].every(property => !diff(scrollbarStyles, bodyScrollbarStyles, property))) return '';
+        const sc = win.getComputedStyle(element, pseudoElt);
+        const scDefault = getDefaultStyles(element, pseudoElt);
+        const bodySc = win.getComputedStyle(doc.body, pseudoElt);
+        if (['width', 'height'].every(property => !diff(sc, scDefault, property))) return ''
+        if (element !== doc.body && ['width', 'height'].every(property => !diff(sc, bodySc, property))) return '';
     }
 
     Array.from(styles).forEach(property => {
@@ -608,7 +614,7 @@ function info(message, replace) {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     toggleLoading();
     info('[INFO] start to scrap the whole DOM...');
-    setTimeout(async() => {
+    setTimeout(async () => {
         const content = await run(document);
         sendResponse(`<!DOCTYPE html>${content}`);
         toggleLoading(false);

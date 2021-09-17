@@ -1,0 +1,22 @@
+{
+  "name": "dom-mirror",
+  "description": "A Chrome extension for mirroring into static HTML files",
+  "main": "content.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aleen42/DOM-mirror.git"
+  },
+  "author": "Aleen <aleen42@vip.qq.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/aleen42/DOM-mirror/issues"
+  },
+  "homepage": "https://github.com/aleen42/DOM-mirror#readme",
+  "devDependencies": {
+    "eslint": "^7.4.0",
+    "eslint-config-aleen42": "^1.0.6"
+  }
+}
