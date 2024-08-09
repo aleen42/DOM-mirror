@@ -1,6 +1,6 @@
 // unique id
 let count = 0, info = console.log;
-const _hid = () => `hook-id-${++count}`;
+const _hid = () => `hid-${++count}`;
 
 /**
  * return element when body does not found the corresponding elements
@@ -13,8 +13,9 @@ const _targetIn = (element, body) => body.querySelector(
 
 const _escape = str => str.replace(/:/g, '-');
 
-// inherited css properties // https://stackoverflow.com/a/5612360
+// inherited css properties
 const inherited = [
+    // https://stackoverflow.com/a/5612360
     'azimuth',
     'border-collapse',
     'border-spacing',
@@ -25,9 +26,9 @@ const inherited = [
     'direction',
     'elevation',
     'empty-cells',
-    // 'font-family',
-    // 'font-size',
-    // 'font-style',
+    'font-family',
+    'font-size',
+    'font-style',
     'font-variant',
     'font-weight',
     'font',
@@ -57,6 +58,10 @@ const inherited = [
     'white-space',
     'widows',
     'word-spacing',
+
+    // TODO: 还有多少继承新属性?
+    'border-block-start-color',
+    'border-block-end-color',
 ];
 
 const unnecessary = /inline-|inset-|block-size|appearance/;
@@ -187,9 +192,19 @@ function initFakeIframe(doc) {
     Array.from(container.getElementsByTagName('iframe'))
         .map(frame => frame.setAttribute('src', 'about:blank'));
 
-    // without inline style
     Array.from(container.getElementsByTagName('*'))
-        .map(tag => tag.removeAttribute('style'));
+        .map(tag => {
+            if (tag.tagName === 'STYLE') {
+                // without style tags
+                tag.parentNode.removeChild(tag);
+            } else {
+                // without inline style
+                tag.removeAttribute('style');
+            }
+        });
+
+    // remove side-effected styles injected by other plugins
+    Array.from(fakeIframe.contentDocument.getElementsByTagName('style')).map(tag => tag.parentNode.removeChild(tag));
 
     body.innerHTML = container.innerHTML;
     return Object.assign(fakeIframe, {_destroy : () => doc.body.parentNode.removeChild(fakeIframe)});
@@ -223,6 +238,10 @@ async function getAppliedStyle(element) {
     const parent = element.parentNode !== doc && element.parentNode;
     const pStyleText = parent ? parent['data-style'] || (parent['data-style'] = await getAppliedStyle(parent)) : '';
     const styles = win.getComputedStyle(element);
+
+    if (styles.getPropertyValue('display') === 'none') return 'display:none';
+    if (styles.getPropertyValue('visibility') === 'hidden') return 'visibility:hidden';
+
     const defaultStyles = getDefaultStyles(element);
 
     const properties = [];
@@ -235,7 +254,7 @@ async function getAppliedStyle(element) {
         // outline-style default none value not works
         if (property === 'outline-style') return true;
         // border-width need to judge according to border-style
-        if ((match = /border-(?:top|right|bottom|left)-width/.exec(property))) {
+        if ((match = /border-(top|right|bottom|left)-width/.exec(property))) {
             return styles.getPropertyValue(`border-${match[1]}-style`) !== 'none';
         }
         return false;
@@ -449,6 +468,8 @@ export default async function run(doc, debug, log) {
                     'this.contentDocument.body.parentNode.innerHTML'
                     + ` = \`${await run(DOMIframe.contentDocument, debug, log)}\`;`
                 );
+
+                removeUnusedAttributes(frame, ['data-iframe-id', 'onload']);
             }
         }
         info('[INFO] scraping iframe elements done.', true);
@@ -473,11 +494,11 @@ export default async function run(doc, debug, log) {
             if (nodeName === 'img') {
                 // change image source to dataURL when they are image tags
                 tag.setAttribute('src', await toDataURL(tag.getAttribute('src')));
-            }
-            if (nodeName === 'input') {
+            } else if (nodeName === 'input') {
                 // keep value of input elements
                 tag.setAttribute('value', DOMTag.value);
             }
+            removeUnusedAttributes(tag);
             // store in memory and calculated firstly without side effects
             // pseudo
             // data--after | data--before | data--disabled
@@ -504,10 +525,21 @@ export default async function run(doc, debug, log) {
             }
             // style
             tag.setAttribute('style', tag['data-style']);
+            removeUnusedAttributes(tag, ['data-pseudo-id', 'style']);
         });
 
         const content = container.innerHTML;
         container._destroy();
         return content.replace(/&quot;/g, '\'');
     }
+}
+
+function removeUnusedAttributes(el, ignored = []) {
+    Array.from(el.attributes).map(attr =>
+        [
+            ...ignored,
+            'data-dom-id',
+            ...el.tagName === 'IMG' ? ['src'] : [],
+            ...el.tagName === 'INPUT' ? ['value'] : [],
+        ].includes(attr.name) || el.removeAttribute(attr.name));
 }
