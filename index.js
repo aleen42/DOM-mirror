@@ -388,7 +388,7 @@ export default async function run(doc, debug, log) {
     // clean the id
     Array.from(body.getElementsByTagName('*')).map(tag => tag.removeAttribute('data-dom-id'));
 
-    const content = (`
+    const content = await (await import('./node_modules/html-minifier-terser/dist/htmlminifier.esm.bundle.js')).minify(`
     <html style="${htmlStyle}">
     <head>
         <!-- title -->
@@ -401,12 +401,20 @@ export default async function run(doc, debug, log) {
         <style>${scrollbarStyle}</style>
     </head>
     <body style="${bodyStyle}">${bodyHtml}</body>
-    </html>`)
-        // simple HTML compression
-        .replace(/^[ \n\r\t\f]+/, '')
-        .replace(/>\s+</g, '><')
-        .replace(/>\s+/g, '>')
-        .replace(/\s+<\//g, '</');
+    </html>`, {
+        collapseBooleanAttributes     : true,
+        collapseInlineTagWhitespace   : true,
+        collapseWhitespace            : true,
+        conservativeCollapse          : true,
+        removeAttributeQuotes         : true,
+        removeComments                : true,
+        removeEmptyAttributes         : true,
+        removeOptionalTags            : true,
+        removeRedundantAttributes     : true,
+        removeScriptTypeAttributes    : true,
+        removeStyleLinkTypeAttributes : true,
+        removeTagWhitespace           : true,
+    });
 
     if (debug) {
         // rerender content in the same site for debugging

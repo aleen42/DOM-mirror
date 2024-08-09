@@ -21,7 +21,8 @@
         "<all_urls>"
       ],
       "resources" : [
-        "index.js"
+        "index.js",
+        "node_modules/html-minifier-terser/dist/htmlminifier.esm.bundle.js"
       ]
     }
   ],

@@ -15,5 +15,8 @@
   "devDependencies": {
     "eslint": "^7.4.0",
     "eslint-config-aleen42": "^1.0.6"
+  },
+  "dependencies": {
+    "html-minifier-terser": "^7.2.0"
   }
 }
