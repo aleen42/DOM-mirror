@@ -381,7 +381,7 @@ export default async function run(doc, debug, log) {
     const bodyHtml = await getStyledContent(body);
     const htmlStyle = (await getAppliedStyle(document.documentElement)).replace(/"/g, '\'');
     const bodyStyle = (await getAppliedStyle(body)).replace(/"/g, '\'');
-    const scrollbarStyle = await getScrollbarStyle(doc);
+    const scrollbarStyle = getScrollbarStyle(doc);
     const fontFace = await getFontFace(doc);
     fakeIframe._destroy();
 
