@@ -4,6 +4,18 @@
 
 A Chrome plugin trying to mirror the whole rendered DOM into single static HTML files without any other stylesheet assets.
 
+### Usages
+
+1. Clone the project:
+    ```bash
+    git clone https://github.com/aleen42/DOM-mirror.git
+    ```
+2. Install dependencies:
+    ```bash
+    cd DOM-mirror && npm i
+    ```
+3. Load unpacked extensions in Chrome and select the cloned folder `DOM-mirror`.
+
 ### Motivations
 
 - To generate UI/UX diagrams of existed products.
