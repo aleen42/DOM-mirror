@@ -1,26 +1,34 @@
 {
-  "manifest_version": 2,
-  "name": "DOM Scraper",
-  "version": "1.0",
-  "background": {
-    "scripts": [
-      "background.js"
-    ]
+  "manifest_version"         : 3,
+  "name"                     : "DOM Scraper",
+  "version"                  : "1.0",
+  "background"               : {
+    "service_worker" : "background.js"
   },
-  "content_scripts": [
+  "content_scripts"          : [
     {
-      "matches": [
+      "matches" : [
         "<all_urls>"
       ],
-      "js": [
+      "js"      : [
         "content.js"
       ]
     }
   ],
-  "browser_action": {
-    "default_title": "DOM Scraper"
+  "web_accessible_resources" : [
+    {
+      "matches"   : [
+        "<all_urls>"
+      ],
+      "resources" : [
+        "index.js"
+      ]
+    }
+  ],
+  "action"                   : {
+    "default_title" : "DOM Scraper"
   },
-  "permissions": [
+  "permissions"              : [
     "activeTab",
     "downloads"
   ]
