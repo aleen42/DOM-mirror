@@ -159,7 +159,7 @@ function initClonedBody(body) {
         .map(tag => {
             const DOMTag = _targetIn(tag, body);
             const nodeName = DOMTag.nodeName.toLowerCase();
-            if (['style', 'script'].includes(nodeName)) {
+            if (['style', 'script', 'link'].includes(nodeName)) {
                 // remove all script or style tags
                 tag.parentNode.removeChild(tag);
             } else if (DOMTag.offsetWidth <= 0 && DOMTag.offsetHeight <= 0) {
@@ -194,7 +194,7 @@ function initFakeIframe(doc) {
 
     Array.from(container.getElementsByTagName('*'))
         .map(tag => {
-            if (tag.tagName === 'STYLE') {
+            if (['STYLE', 'SCRIPT', 'LINK'].includes(tag.tagName)) {
                 // without style tags
                 tag.parentNode.removeChild(tag);
             } else {
