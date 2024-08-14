@@ -1,5 +1,6 @@
 {
-  "name": "dom-mirror",
+  "name": "@aleen42/dom-mirror",
+  "version" : "1.0.0-beta.2",
   "description": "A Chrome extension for mirroring into static HTML files",
   "main": "index.js",
   "repository": {
