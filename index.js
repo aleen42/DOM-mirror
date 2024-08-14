@@ -494,7 +494,7 @@ export default async function run(doc, debug, log) {
             if (nodeName === 'img') {
                 // change image source to dataURL when they are image tags
                 tag.setAttribute('src', await toDataURL(tag.getAttribute('src')));
-            } else if (nodeName === 'input') {
+            } else if (nodeName === 'input' && tag.type !== 'password') {
                 // keep value of input elements
                 tag.setAttribute('value', DOMTag.value);
             }
