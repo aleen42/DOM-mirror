@@ -135,8 +135,7 @@
         toggleLoading();
         info('[INFO] start to scrap the whole DOM...');
         setTimeout(async () => {
-            const content = await (await import('./index.js')).default(document, 0, info);
-            sendResponse(`<!DOCTYPE html>${content}`);
+            sendResponse(await (await import('./index.js')).default(document, 0, info));
             toggleLoading(false);
         });
         return true; // keep channel open // https://stackoverflow.com/a/53024910

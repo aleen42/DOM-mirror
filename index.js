@@ -440,7 +440,7 @@ export default async function run(doc, debug, log) {
         document.documentElement.setAttribute('style', htmlStyle);
         body.parentNode.innerHTML = content;
     }
-    return content;
+    return `<!DOCTYPE html>${content}`;
 
     async function getStyledContent(body) {
         let start, length;
