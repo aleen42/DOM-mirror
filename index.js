@@ -232,12 +232,51 @@ function getDefaultStyles(element, pseudo) {
     return fakeIframe.contentWindow.getComputedStyle(target, pseudo);
 }
 
+const styleKeys = Array.from(getComputedStyle(document.body));
+// cache document nodes for calculating xPaths
+const docNodesMap = new Map();
+
+function getXPath(element) {
+    const {ownerDocument : doc} = element;
+    const allNodes = docNodesMap.get(doc) || docNodesMap.set(doc, Array.from((doc.getElementsByTagName('*')))).get(doc);
+    let segments = [];
+    for (; element && element.nodeType === Node.ELEMENT_NODE; element = element.parentNode) {
+        if (element.hasAttribute('id')) {
+            let uniqueIdCount = 0;
+            allNodes.some(n => {
+                if (n.hasAttribute('id') && n.id === element.id) uniqueIdCount++;
+                if (uniqueIdCount > 1) return /** break = */ 1;
+            });
+            if (uniqueIdCount === 1) {
+                segments.unshift(`id("${element.getAttribute('id')}")`);
+                return segments.join('/');
+            } else {
+                segments.unshift(`${element.localName.toLowerCase()}[@id="${element.getAttribute('id')}"]`);
+            }
+        } else if (element.hasAttribute('class')) {
+            segments.unshift(`${element.localName.toLowerCase()}[@class="${element.getAttribute('class')}"]`);
+        } else {
+            let i, sib;
+            for (i = 1, sib = element.previousSibling; sib; sib = sib.previousSibling) {
+                if (sib.localName === element.localName) i++;
+            }
+            segments.unshift(`${element.localName.toLowerCase()}[${i}]`);
+        }
+    }
+    return segments.length ? `/${segments.join('/')}` : null;
+}
+
+// cache the same applied style with the same xPath
+const appliedStyleMap = new Map();
+
 async function getAppliedStyle(element) {
     const doc = element.ownerDocument;
     const win = doc.defaultView || doc.parentWindow;
     const parent = element.parentNode !== doc && element.parentNode;
     const pStyleText = parent ? parent['data-style'] || (parent['data-style'] = await getAppliedStyle(parent)) : '';
     const styles = win.getComputedStyle(element);
+    const key = `${getXPath(element)}:${Object.values(styles)}`, applied = appliedStyleMap.get(key);
+    if (applied) return applied;
 
     if (styles.getPropertyValue('display') === 'none') return 'display:none';
     if (styles.getPropertyValue('visibility') === 'hidden') return 'visibility:hidden';
@@ -260,7 +299,7 @@ async function getAppliedStyle(element) {
         return false;
     };
 
-    for await (const property of Array.from(styles)) {
+    await Promise.all(styleKeys.map(async property => {
         const style = styles.getPropertyValue(property);
         const defaultStyle = defaultStyles.getPropertyValue(property);
         const text = `${property}:${style}`;
@@ -320,9 +359,9 @@ async function getAppliedStyle(element) {
                 }
             }
         }
-    }
+    }));
 
-    return properties.join(';');
+    return appliedStyleMap.set(key, properties.join(';')).get(key);
 }
 
 /**
@@ -490,7 +529,6 @@ export default async function run(doc, debug, log) {
             const nodeName = tag.nodeName.toLowerCase();
             // use DOM tag rather than the copies in order to avoid side effects by `display:none`
             const DOMTag = _targetIn(tag, body);
-
             if (nodeName === 'img') {
                 // change image source to dataURL when they are image tags
                 tag.setAttribute('src', await toDataURL(tag.getAttribute('src')));
@@ -498,7 +536,6 @@ export default async function run(doc, debug, log) {
                 // keep value of input elements
                 tag.setAttribute('value', DOMTag.value);
             }
-            removeUnusedAttributes(tag);
             // store in memory and calculated firstly without side effects
             // pseudo
             // data--after | data--before | data--disabled
@@ -507,6 +544,7 @@ export default async function run(doc, debug, log) {
             pseudos.map(pseudo => (tag[`data-${_escape(pseudo)}`] = getPseudoStyle(DOMTag, pseudo)));
             // style
             tag['data-style'] = tag['data-style'] || await getAppliedStyle(DOMTag);
+            removeUnusedAttributes(tag);
         }
         info('[INFO] scraping DOM elements done.', true);
 
