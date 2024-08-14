@@ -26,12 +26,12 @@ const inherited = [
     'direction',
     'elevation',
     'empty-cells',
-    'font-family',
-    'font-size',
-    'font-style',
-    'font-variant',
-    'font-weight',
-    'font',
+    // 'font-family',
+    // 'font-size',
+    // 'font-style',
+    // 'font-variant',
+    // 'font-weight',
+    // 'font',
     'letter-spacing',
     'line-height',
     'list-style-image',
@@ -287,7 +287,7 @@ async function getAppliedStyle(element) {
     const _ignoreDefault = property => {
         let match;
         // font-style has side effects
-        if (['font-size', 'font-family', 'font-style'].includes(property)) return true;
+        if (['font-size', 'font-family', 'font-style', 'font-variant', 'font-weight', 'font'].includes(property)) return true;
         // inherited but not same
         if (inherited.includes(property) && pStyleText && pStyleText.includes(property)) return true;
         // outline-style default none value not works
