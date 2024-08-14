@@ -236,8 +236,8 @@ async function getAppliedStyle(element) {
     const doc = element.ownerDocument;
     const win = doc.defaultView || doc.parentWindow;
     const parent = element.parentNode !== doc && element.parentNode;
-    const pStyleText = parent ? parent['data-style'] || (parent['data-style'] = await getAppliedStyle(parent)) : '';
     const styles = win.getComputedStyle(element);
+    const pStyles = parent && win.getComputedStyle(parent);
 
     if (styles.getPropertyValue('display') === 'none') return 'display:none';
     if (styles.getPropertyValue('visibility') === 'hidden') return 'visibility:hidden';
@@ -245,12 +245,10 @@ async function getAppliedStyle(element) {
     const defaultStyles = getDefaultStyles(element);
 
     const properties = [];
-    const _ignoreDefault = property => {
+    const _ignoreDefault = (property, style) => {
         let match;
-        // font-style has side effects
-        if (['font-size', 'font-family', 'font-style'].includes(property)) return true;
         // inherited but not same
-        if (inherited.includes(property) && pStyleText && pStyleText.includes(property)) return true;
+        if (inherited.includes(property) && pStyles && pStyles.getPropertyValue(property) !== style) return true;
         // outline-style default none value not works
         if (property === 'outline-style') return true;
         // border-width need to judge according to border-style
@@ -260,13 +258,21 @@ async function getAppliedStyle(element) {
         return false;
     };
 
+    const _ignoreInherited = (property, style) =>
+        !pStyles || pStyles.getPropertyValue(property) !== style
+        // some elements have its default inherited font styles or line-height
+        || (['INPUT', 'BUTTON', 'SELECT'].includes(element.tagName)
+            && (/font-/.test(property) || property === 'line-height'))
+        || (['TH'].includes(element.tagName)
+            && property === 'font-weight');
+
     for await (const property of Array.from(styles)) {
         const style = styles.getPropertyValue(property);
         const defaultStyle = defaultStyles.getPropertyValue(property);
         const text = `${property}:${style}`;
         if (style
-            && !(inherited.includes(property) && pStyleText && pStyleText.includes(text)) // inherited
-            && (_ignoreDefault(property) || defaultStyle !== style)
+            && (_ignoreInherited(property, style) || !inherited.includes(property)) // inherited
+            && (_ignoreDefault(property, style) || defaultStyle !== style)
         ) {
             let url;
             if (property === 'background-image' && (url = (/url\("(.*?)"\)/.exec(style) || [])[1])) {
@@ -344,6 +350,7 @@ function getPseudoStyle(element, pseudo) {
     const doc = element.ownerDocument;
     const win = doc.defaultView || doc.parentWindow;
     const styles = win.getComputedStyle(element, pseudo);
+    const pStyles = win.getComputedStyle(element);
 
     const properties = [];
 
@@ -357,21 +364,22 @@ function getPseudoStyle(element, pseudo) {
         const sc = win.getComputedStyle(element, pseudoElt);
         const scDefault = getDefaultStyles(element, pseudoElt);
         const bodySc = win.getComputedStyle(doc.body, pseudoElt);
-        if (['width', 'height'].every(property => !diff(sc, scDefault, property))) return ''
+        if (['width', 'height'].every(property => !diff(sc, scDefault, property))) return '';
         if (element !== doc.body && ['width', 'height'].every(property => !diff(sc, bodySc, property))) return '';
     }
 
     Array.from(styles).map(property => {
-        const style = diff(styles, defaultStyles, property);
+        const style = diff(styles, defaultStyles, property, pStyles);
         style && !unnecessary.test(property) && properties.push(`${property}:${style}`);
     });
 
     return properties.join(';');
 
-    function diff(styles, defaultStyles, property) {
+    function diff(styles, defaultStyles, property, pStyles) {
         const style = styles.getPropertyValue(property);
         const defaultStyle = defaultStyles && defaultStyles.getPropertyValue(property);
-        return (!defaultStyle || defaultStyle !== style) && style;
+        return (!defaultStyle || defaultStyle !== style
+                || (pStyles && pStyles.getPropertyValue(property) !== style)) && style;
     }
 }
 
