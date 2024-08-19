@@ -439,7 +439,7 @@ function getScrollbarStyle(doc) {
 export default async function run(doc, debug, log) {
     info = log || info;
 
-    const body = doc.body;
+    const [originalBody, body] = await freeze(doc);
     // mark id for looking up
     Array.from(body.getElementsByTagName('*')).map(tag => tag.setAttribute('data-dom-id', _hid()));
 
@@ -487,6 +487,9 @@ export default async function run(doc, debug, log) {
         // rerender content in the same site for debugging
         document.documentElement.setAttribute('style', htmlStyle);
         body.parentNode.innerHTML = content;
+    } else {
+        // recover body
+        doc.body = originalBody;
     }
     return `<!DOCTYPE html>${content}`;
 
@@ -589,4 +592,15 @@ function removeUnusedAttributes(el, ignored = []) {
             ...el.tagName === 'IMG' ? ['src'] : [],
             ...el.tagName === 'INPUT' ? ['value'] : [],
         ].includes(attr.name) || el.removeAttribute(attr.name));
+}
+
+function freeze(doc) {
+    const original = doc.body;
+    const cloned = (doc.body = original.cloneNode(true));
+    return new Promise(resolve => {
+        let loaded = 0;
+        Array.from(cloned.getElementsByTagName('link')).map((n, i, arr) => (n.onload = () => {
+            ++loaded === arr.length && resolve([original, cloned]);
+        }));
+    });
 }
