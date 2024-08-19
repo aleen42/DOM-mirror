@@ -547,6 +547,8 @@ export default async function run(doc, debug, log) {
             } else if (nodeName === 'input' && tag.type !== 'password') {
                 // keep value of input elements
                 tag.setAttribute('value', DOMTag.value);
+                const placeholder = DOMTag.getAttribute('placeholder');
+                placeholder && tag.setAttribute('placeholder', placeholder);
             }
             // store in memory and calculated firstly without side effects
             // pseudo
@@ -590,7 +592,7 @@ function removeUnusedAttributes(el, ignored = []) {
             ...ignored,
             'data-dom-id',
             ...el.tagName === 'IMG' ? ['src'] : [],
-            ...el.tagName === 'INPUT' ? ['value'] : [],
+            ...el.tagName === 'INPUT' ? ['value', 'placeholder'] : [],
         ].includes(attr.name) || el.removeAttribute(attr.name));
 }
 
