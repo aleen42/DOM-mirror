@@ -318,12 +318,12 @@ async function getAppliedStyle(element) {
             if (property === 'background-image' && (url = (/url\("(.*?)"\)/.exec(style) || [])[1])) {
                 properties.push(`${property}:url("${await toDataURL(url)}")`);
             } else if (/^(?:width|height)$/.test(property) && /px$/.test(style)) {
+                if (!hasExplicitSize(element)[property]) return;
                 const innerProperty = property.replace(/^[a-z]/, $0 => $0.toUpperCase());
                 const currentVal = parseFloat(style);
-                const parentVal = element.parentNode === doc
-                    ? window[`inner${innerProperty}`]
-                    : element.parentNode[`client${innerProperty}`];
-                if (currentVal === parentVal) {
+                const parentVal = element.parentNode === doc ? win[`inner${innerProperty}`]
+                    : parseFloat(pStyles.getPropertyValue(property));
+                if (currentVal === parentVal && (!parent || hasExplicitSize(parent)[property])) {
                     // TODO: not accurate
                     properties.push(`${property}:100%`); // keep responsive
                 } else {
@@ -342,7 +342,7 @@ async function getAppliedStyle(element) {
                 const antiVal = parseFloat(styles.getPropertyValue(anti));
                 const sum = currentVal + parseFloat(element[`client${innerProperty}`]) + antiVal;
                 // TODO: how to detect whether current value is a percentage value?
-                if (sum !== window[`inner${innerProperty}`] || currentVal <= antiVal) {
+                if (sum !== win[`inner${innerProperty}`] || currentVal <= antiVal) {
                     properties.push(text);
                 }
             } else if (/^margin-(?:left|right|top|bottom)$/.test(property) && /px$/.test(style)) {
@@ -369,6 +369,28 @@ async function getAppliedStyle(element) {
     }));
 
     return appliedStyleMap.set(key, properties.join(';')).get(key);
+
+    function hasExplicitSize(el) {
+        const temp = el.cloneNode();
+        temp.style.cssText += 'visibility:hidden';
+
+        const parent = el.parentNode;
+        try {
+            parent.insertBefore(temp, el.nextSibling);
+        } catch {
+            // html element
+            return {width : true, height : true};
+        }
+
+        const tempStyles = win.getComputedStyle(temp);
+        const elStyles = el === element ? styles : win.getComputedStyle(el);
+        const [width, height] = [
+            elStyles.getPropertyValue('width') === tempStyles.getPropertyValue('width'),
+            elStyles.getPropertyValue('height') === tempStyles.getPropertyValue('height'),
+        ];
+        parent.removeChild(temp);
+        return {width, height};
+    }
 }
 
 /**
