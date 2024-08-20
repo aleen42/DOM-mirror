@@ -268,6 +268,7 @@ function getXPath(element) {
 
 // cache the same applied style with the same xPath
 const appliedStyleMap = new Map();
+const appliedStyles = [], applyId = i => `c${i}`, apply = style => applyId(appliedStyles.push(style) - 1);
 
 async function getAppliedStyle(element) {
     const doc = element.ownerDocument;
@@ -462,14 +463,17 @@ export default async function run(doc, debug, log) {
     info = log || info;
 
     const [originalBody, body] = await freeze(doc);
+    // clean
+    count = appliedStyles.length = 0;
+
     // mark id for looking up
     Array.from(body.getElementsByTagName('*')).map(tag => tag.setAttribute('data-dom-id', _hid()));
 
     // init fake document for isolating from stylesheet
     const fakeIframe = initFakeIframe(doc);
     const bodyHtml = await getStyledContent(body);
-    const htmlStyle = (await getAppliedStyle(document.documentElement)).replace(/"/g, '\'');
-    const bodyStyle = (await getAppliedStyle(body)).replace(/"/g, '\'');
+    const htmlClassId = apply((await getAppliedStyle(document.documentElement)).replace(/"/g, '\''));
+    const bodyClassId = apply((await getAppliedStyle(body)).replace(/"/g, '\''));
     const scrollbarStyle = getScrollbarStyle(doc);
     const fontFace = await getFontFace(doc);
     fakeIframe._destroy();
@@ -477,8 +481,9 @@ export default async function run(doc, debug, log) {
     // clean the id
     Array.from(body.getElementsByTagName('*')).map(tag => tag.removeAttribute('data-dom-id'));
 
+    const appliedStyleText = appliedStyles.map((v, i) => `.${applyId(i)}{${v}}`).join('');
     const content = await (await import('./node_modules/html-minifier-terser/dist/htmlminifier.esm.bundle.js')).minify(`
-    <html style="${htmlStyle}">
+    <html class=${htmlClassId}>
     <head>
         <!-- title -->
         <title>${doc.title}</title>
@@ -488,8 +493,11 @@ export default async function run(doc, debug, log) {
         <style>${fontFace}</style>
         <!-- scrollbar style -->
         <style>${scrollbarStyle}</style>
+        
+        <!-- applied styles -->
+        <style>${appliedStyleText}</style>
     </head>
-    <body style="${bodyStyle}">${bodyHtml}</body>
+    <body class=${bodyClassId}>${bodyHtml}</body>
     </html>`, {
         collapseBooleanAttributes     : true,
         collapseInlineTagWhitespace   : true,
@@ -507,7 +515,7 @@ export default async function run(doc, debug, log) {
 
     if (debug) {
         // rerender content in the same site for debugging
-        document.documentElement.setAttribute('style', htmlStyle);
+        document.documentElement.setAttribute('class', htmlClassId);
         body.parentNode.innerHTML = content;
     } else {
         // recover body
@@ -578,9 +586,9 @@ export default async function run(doc, debug, log) {
             // data---webkit-scrollbar | data---webkit-scrollbar-thumb | data---webkit-scrollbar-thumb-hover
             // data---webkit-scrollbar-track | data---webkit-scrollbar-button
             pseudos.map(pseudo => (tag[`data-${_escape(pseudo)}`] = getPseudoStyle(DOMTag, pseudo)));
-            // style
-            tag['data-style'] = tag['data-style'] || await getAppliedStyle(DOMTag);
             removeUnusedAttributes(tag);
+            // class
+            tag.setAttribute('class', apply(await getAppliedStyle(DOMTag)));
         }
         info('[INFO] scraping DOM elements done.', true);
 
@@ -597,9 +605,7 @@ export default async function run(doc, debug, log) {
                 style.innerHTML = content;
                 tag.before(style);
             }
-            // style
-            tag.setAttribute('style', tag['data-style']);
-            removeUnusedAttributes(tag, ['data-pseudo-id', 'style']);
+            removeUnusedAttributes(tag, ['data-pseudo-id', 'class']);
         });
 
         const content = container.innerHTML;
