@@ -459,7 +459,7 @@ function getScrollbarStyle(doc) {
     return `${scrollbarPseudos.map(pseudo => `${pseudo} {${getPseudoStyle(doc.body, pseudo)}}`).join('')}`;
 }
 
-export default async function run(doc, debug, log) {
+export default async function run(doc, reservedAttributes, debug, log) {
     info = log || info;
 
     const [originalBody, body] = await freeze(doc);
@@ -612,16 +612,17 @@ export default async function run(doc, debug, log) {
         container._destroy();
         return content.replace(/&quot;/g, '\'');
     }
-}
 
-function removeUnusedAttributes(el, ignored = []) {
-    Array.from(el.attributes).map(attr =>
-        [
-            ...ignored,
-            'data-dom-id',
-            ...el.tagName === 'IMG' ? ['src'] : [],
-            ...el.tagName === 'INPUT' ? ['value', 'placeholder'] : [],
-        ].includes(attr.name) || el.removeAttribute(attr.name));
+    function removeUnusedAttributes(el, ignored = []) {
+        Array.from(el.attributes).map(attr =>
+            [
+                ...ignored,
+                'data-dom-id',
+                ...reservedAttributes || [],
+                ...el.tagName === 'IMG' ? ['src'] : [],
+                ...el.tagName === 'INPUT' ? ['value', 'placeholder'] : [],
+            ].includes(attr.name) || el.removeAttribute(attr.name));
+    }
 }
 
 function freeze(doc) {
