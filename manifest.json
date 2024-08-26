@@ -22,7 +22,7 @@
       ],
       "resources" : [
         "index.js",
-        "node_modules/html-minifier-terser/dist/htmlminifier.esm.bundle.js"
+        "dist/main.mjs"
       ]
     }
   ],

@@ -482,7 +482,8 @@ export default async function run(doc, debug, log) {
     Array.from(body.getElementsByTagName('*')).map(tag => tag.removeAttribute('data-dom-id'));
 
     const appliedStyleText = appliedStyles.map((v, i) => `.${applyId(i)}{${v}}`).join('');
-    const content = await (await import('./node_modules/html-minifier-terser/dist/htmlminifier.esm.bundle.js')).minify(`
+    const {htmlMinify, cssMinify} = await import('./dist/main.mjs');
+    const content = await htmlMinify(`
     <html class=${htmlClassId}>
     <head>
         <!-- title -->
@@ -490,12 +491,11 @@ export default async function run(doc, debug, log) {
         <!-- encoding -->
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <!-- @font-face -->
-        <style>${fontFace}</style>
+        <style>${await cssMinify(fontFace)}</style>
         <!-- scrollbar style -->
-        <style>${scrollbarStyle}</style>
-        
+        <style>${await cssMinify(scrollbarStyle)}</style>
         <!-- applied styles -->
-        <style>${appliedStyleText}</style>
+        <style>${await cssMinify(appliedStyleText)}</style>
     </head>
     <body class=${bodyClassId}>${bodyHtml}</body>
     </html>`, {

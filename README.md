@@ -12,7 +12,7 @@ A Chrome plugin trying to mirror the whole rendered DOM into single static HTML 
     ```
 2. Install dependencies:
     ```bash
-    cd DOM-mirror && npm i
+    cd DOM-mirror && npm i && npm run prepublishOnly
     ```
 3. Load unpacked extensions in Chrome and select the cloned folder `DOM-mirror`.
 
