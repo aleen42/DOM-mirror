@@ -521,7 +521,14 @@ export default async function run(doc, reservedAttributes, debug, log) {
         // recover body
         doc.body = originalBody;
     }
-    return `<!DOCTYPE html>${content}`;
+    return '<!DOCTYPE html><body>'
+           + '<head><meta http-equiv=Content-Type content="text/html; charset=utf-8"></head>'
+           + '<style>body{background:#000;margin:0}iframe{'
+           + `border:none;outline:none;width:${window.innerWidth}px;height:${window.innerHeight}px`
+           + '}</style>'
+           + '<script>var a=document.createElement("iframe");'
+           + `a.srcdoc=\`<!DOCTYPE html>${content}\`;`
+           + 'document.body.appendChild(a)</script></body>';
 
     async function getStyledContent(body) {
         let start, length;
